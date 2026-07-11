@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Report · {{ r.username }}{% endblock %}
+
+{% macro unicode_board(fen) -%}
+  {%- set pieces = {'K':'♔','Q':'♕','R':'♖','B':'♗','N':'♘','P':'♙',
+                    'k':'♚','q':'♛','r':'♜','b':'♝','n':'♞','p':'♟'} -%}
+  <div class="grid" aria-hidden="true">
+  {%- set board_part = fen.split(' ')[0] -%}
+  {%- set ns = namespace(sq=0) -%}
+  {%- for rank in board_part.split('/') -%}
+    {%- for ch in rank -%}
+      {%- if ch.isdigit() -%}
+        {%- for _ in range(ch|int) -%}
+          <div class="sq {{ 'l' if (ns.sq // 8 + ns.sq % 8) % 2 == 0 else 'd' }}"></div>
+          {%- set ns.sq = ns.sq + 1 -%}
+        {%- endfor -%}
+      {%- else -%}
+        <div class="sq {{ 'l' if (ns.sq // 8 + ns.sq % 8) % 2 == 0 else 'd' }}">
+          <span class="{{ 'wp' if ch.isupper() else 'bp' }}">{{ pieces[ch] }}</span></div>
+        {%- set ns.sq = ns.sq + 1 -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endfor -%}
+  </div>
+{%- endmacro %}
+
+{% block body %}
+<h2>{{ r.username }} · {{ r.platform }}</h2>
+<p class="lede">{{ r.games }} games, {{ r.moves }} of your moves examined at
+engine depth {{ job.depth }}.</p>
+
+{% if r.moves == 0 %}
+  <p class="error">No moves found — check the username and platform, then run again.</p>
+{% else %}
+
+<div class="stats">
+  <div><b>{{ r.avg_loss }}</b><span>avg cp loss / move</span></div>
+  <div><b>{{ r.blunders }}</b><span>blunders (≥200cp)</span></div>
+  <div><b>{{ r.mistakes }}</b><span>mistakes (100–199)</span></div>
+  <div><b>{{ r.blunder_rate }}</b><span>blunders / 100 moves</span></div>
+</div>
+
+<div class="insights">
+  {% for line in r.insights %}<p>{{ line }}</p>{% endfor %}
+</div>
+
+<section>
+  <h3>Evaluation lost by phase</h3>
+  <table>
+    <tr><th>phase</th><th>moves</th><th>avg loss</th><th>blunders</th><th style="width:38%"></th></tr>
+    {% set maxavg = r.by_phase|map(attribute=2)|max if r.by_phase else 1 %}
+    {% for phase, n, avg, bl in r.by_phase %}
+    <tr>
+      <td>{{ phase }}</td><td>{{ n }}</td><td>{{ avg }}cp</td><td>{{ bl }}</td>
+      <td><div class="bar {{ 'ok' if avg < 30 }}">
+        <i style="width:{{ (100 * avg / maxavg)|round(0) }}%"></i></div></td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% if r.by_color|length == 2 %}
+<section>
+  <h3>By color</h3>
+  <table>
+    <tr><th>color</th><th>moves</th><th>avg loss</th></tr>
+    {% for color, n, avg in r.by_color %}
+    <tr><td>{{ color }}</td><td>{{ n }}</td><td>{{ avg }}cp</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+
+<section>
+  <h3>Your worst moves</h3>
+  <table>
+    <tr><th>#</th><th>you played</th><th>engine preferred</th>
+        <th>phase</th><th class="loss">cp lost</th><th style="width:30%"></th></tr>
+    {% set maxloss = r.worst[0].cp_loss if r.worst else 1 %}
+    {% for w in r.worst %}
+    <tr>
+      <td>{{ w.move_number }}</td>
+      <td class="san">{{ w.san }}</td>
+      <td>{{ w.best }}</td>
+      <td>{{ w.phase }}</td>
+      <td class="loss">{{ w.cp_loss }}</td>
+      <td><div class="bar"><i style="width:{{ (100 * w.cp_loss / maxloss)|round(0) }}%"></i></div></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="boards">
+    {% for w in r.worst[:3] %}
+    <figure class="board">
+      {{ unicode_board(w.fen) }}
+      <figcaption>move {{ w.move_number }} as {{ w.color }} —
+        you played <b class="san">{{ w.san }}</b>, engine preferred
+        {{ w.best }} · −{{ w.cp_loss }}cp</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <p class="lede" style="font-size:.9rem">Run again with more games or higher
+  depth any time — every evaluation is cached, so repeat runs only pay for
+  new positions. <a href="{{ url_for('index') }}">New analysis</a></p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}New analysis{% endblock %}
+{% block body %}
+<h2>Where do you lose your games?</h2>
+<p class="lede">Point this at your account and every move you've played gets
+re-examined by Stockfish. The report shows where the evaluation left you —
+by game phase, by color, and move by move.</p>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form class="panel" method="post" action="{{ url_for('analyze') }}">
+  <div class="row">
+    <div>
+      <label for="platform">Platform</label>
+      <select id="platform" name="platform">
+        <option value="lichess">Lichess</option>
+        <option value="chesscom">Chess.com</option>
+      </select>
+    </div>
+    <div>
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username"
+             placeholder="your account name" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label for="max_games">Games to review (most recent)</label>
+      <input type="number" id="max_games" name="max_games"
+             value="50" min="1" max="1000">
+    </div>
+    <div>
+      <label for="depth_custom">Engine depth</label>
+      <div class="depths" role="radiogroup" aria-label="Engine depth preset">
+        <input type="radio" id="d_low" name="depth_preset" value="low">
+        <label class="chip" for="d_low">Low<small>depth {{ presets['low'] }} · fastest</small></label>
+        <input type="radio" id="d_bal" name="depth_preset" value="balanced" checked>
+        <label class="chip" for="d_bal">Balanced<small>depth {{ presets['balanced'] }} · default</small></label>
+        <input type="radio" id="d_high" name="depth_preset" value="high">
+        <label class="chip" for="d_high">High<small>depth {{ presets['high'] }} · slowest</small></label>
+      </div>
+      <input type="number" id="depth_custom" name="depth_custom"
+             placeholder="or exact depth (6–24)" min="6" max="24"
+             style="margin-top:.5rem">
+    </div>
+  </div>
+
+  <div style="display:flex;gap:.8rem;align-items:center">
+    <button class="go" type="submit">Review my games</button>
+    <button class="demo" type="submit" name="demo" value="1"
+            formnovalidate>Run the demo instead</button>
+  </div>
+</form>
+
+<p class="lede" style="margin-top:1.4rem;font-size:.9rem">
+Depth is the speed dial: Low answers "did I blunder?", High argues over
+the fine positional moves. Deeper runs are slower per position — evaluations
+are cached, so re-running deeper later only pays for the difference.</p>
+{% endblock %}

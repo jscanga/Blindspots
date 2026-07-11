@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Analyzing{% endblock %}
+{% block body %}
+<h2>Reviewing your games</h2>
+<p class="lede">Stockfish is replaying every position you faced. This page
+updates itself; the report opens when the run finishes.</p>
+
+<div class="stats">
+  <div><b id="games">0</b><span>games done</span></div>
+  <div><b id="moves">0</b><span>moves analyzed</span></div>
+  <div><b id="calls">0</b><span>engine evals</span></div>
+  <div><b id="hits">0</b><span>cache hits</span></div>
+</div>
+<p class="lede" id="state" style="font-family:var(--mono);font-size:.85rem">
+starting…</p>
+<p class="error" id="err" style="display:none"></p>
+
+<script>
+const jobId = {{ job_id|tojson }};
+async function poll(){
+  const r = await fetch(`/status/${jobId}`);
+  if(!r.ok){ document.getElementById('state').textContent='job not found'; return; }
+  const j = await r.json();
+  for (const [id,k] of [['games','games'],['moves','moves'],
+                        ['calls','engine_calls'],['hits','cache_hits']])
+    document.getElementById(id).textContent = j[k];
+  document.getElementById('state').textContent =
+    j.state + (j.state==='analyzing' ? ` · depth ${j.depth} · up to ${j.max_games} games` : '');
+  if (j.state === 'done'){ location.href = `/report/${jobId}`; return; }
+  if (j.state === 'error'){
+    const e = document.getElementById('err');
+    e.textContent = j.error; e.style.display='block'; return;
+  }
+  setTimeout(poll, 1200);
+}
+poll();
+</script>
+{% endblock %}

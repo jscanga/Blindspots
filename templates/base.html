@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Blind Spots{% endblock %} · chess-blindspots</title>
+<style>
+  /* ── tokens ─────────────────────────────────────────────────────────
+     felt:   tournament-table green, the room the analysis happens in
+     ivory:  scoresheet paper
+     tan:    board light-square wood, the accent
+     rust:   blunder red   ·   moss: engine-approval green            */
+  :root{
+    --felt:#212b24; --felt-deep:#1a221c; --line:#37453b;
+    --ivory:#ece5d3; --ivory-dim:#b9b2a0;
+    --tan:#c9a36a; --rust:#c05046; --moss:#8fae62;
+    --mono:ui-monospace,'Cascadia Code','JetBrains Mono',Menlo,monospace;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--felt);color:var(--ivory);font:16px/1.55 var(--serif);
+       min-height:100vh;display:flex;flex-direction:column}
+  main{width:min(880px,92vw);margin:0 auto;flex:1;padding:2.5rem 0 4rem}
+  a{color:var(--tan)}
+  /* masthead: set like a scoresheet header */
+  header{border-bottom:1px solid var(--line);background:var(--felt-deep)}
+  .mast{width:min(880px,92vw);margin:0 auto;padding:1.1rem 0;
+        display:flex;align-items:baseline;gap:.9rem}
+  .mast h1{font-size:1.15rem;font-weight:600;letter-spacing:.02em}
+  .mast h1 a{color:var(--ivory);text-decoration:none}
+  .mast .sub{font-family:var(--mono);font-size:.72rem;color:var(--ivory-dim);
+             text-transform:uppercase;letter-spacing:.14em}
+  h2{font-size:1.7rem;font-weight:600;margin:0 0 .35rem}
+  .lede{color:var(--ivory-dim);margin-bottom:2rem;max-width:56ch}
+  /* forms */
+  form.panel{background:var(--felt-deep);border:1px solid var(--line);
+             border-radius:10px;padding:1.6rem;display:grid;gap:1.25rem}
+  label{display:block;font-family:var(--mono);font-size:.72rem;
+        text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-dim);
+        margin-bottom:.45rem}
+  input[type=text],input[type=number],select{
+    width:100%;padding:.6rem .7rem;border-radius:6px;border:1px solid var(--line);
+    background:var(--felt);color:var(--ivory);font:1rem var(--mono)}
+  input:focus,select:focus,button:focus{outline:2px solid var(--tan);outline-offset:1px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+  @media(max-width:640px){.row{grid-template-columns:1fr}}
+  /* depth chooser: qualitative chips + custom number */
+  .depths{display:flex;gap:.5rem;flex-wrap:wrap}
+  .depths input[type=radio]{position:absolute;opacity:0}
+  .depths .chip{border:1px solid var(--line);border-radius:6px;padding:.5rem .8rem;
+        cursor:pointer;font-family:var(--mono);font-size:.85rem;color:var(--ivory-dim)}
+  .depths .chip small{display:block;font-size:.68rem;color:var(--ivory-dim)}
+  .depths input:checked + .chip{border-color:var(--tan);color:var(--ivory);
+        background:rgba(201,163,106,.08)}
+  .depths input:focus-visible + .chip{outline:2px solid var(--tan)}
+  button.go{background:var(--tan);color:#241c10;border:0;border-radius:6px;
+        padding:.75rem 1.4rem;font:600 1rem var(--serif);cursor:pointer}
+  button.demo{background:none;border:1px solid var(--line);color:var(--ivory-dim);
+        border-radius:6px;padding:.75rem 1rem;font:.9rem var(--mono);cursor:pointer}
+  .error{border:1px solid var(--rust);color:var(--rust);border-radius:6px;
+        padding:.7rem .9rem;font-family:var(--mono);font-size:.85rem}
+  /* the signature: engine eval-bars */
+  .bar{height:10px;background:var(--felt);border:1px solid var(--line);
+       border-radius:5px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--rust)}
+  .bar.ok>i{background:var(--moss)}
+  /* stat strip */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+         gap:1px;background:var(--line);border:1px solid var(--line);
+         border-radius:10px;overflow:hidden;margin:1.5rem 0}
+  .stats>div{background:var(--felt-deep);padding:1rem}
+  .stats b{display:block;font:600 1.5rem var(--mono);color:var(--ivory)}
+  .stats span{font-family:var(--mono);font-size:.7rem;color:var(--ivory-dim);
+              text-transform:uppercase;letter-spacing:.12em}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.85rem}
+  th{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;
+     color:var(--ivory-dim);text-align:left;padding:.5rem .6rem;
+     border-bottom:1px solid var(--line)}
+  td{padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  .san{color:var(--tan);font-weight:600}
+  .loss{color:var(--rust);font-weight:600;text-align:right}
+  /* unicode boards for worst positions */
+  .boards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+          gap:1.4rem;margin-top:1rem}
+  .board{border:1px solid var(--line);border-radius:8px;overflow:hidden;
+         background:var(--felt-deep)}
+  .board .grid{display:grid;grid-template-columns:repeat(8,1fr);
+        grid-template-rows:repeat(8,1fr);aspect-ratio:1;width:100%;
+        font-size:clamp(18px,3.2vw,26px);line-height:1}
+  .sq{display:flex;align-items:center;justify-content:center;aspect-ratio:1;
+        min-width:0;min-height:0}
+  .sq.l{background:#d8c9a3}.sq.d{background:#7c9268}
+  .sq .wp{color:#faf6ec;text-shadow:0 1px 1px rgba(0,0,0,.55)}
+  .sq .bp{color:#20241e}
+  .board figcaption{padding:.6rem .75rem;font:.75rem var(--mono);
+        color:var(--ivory-dim)}
+  .insights{display:grid;gap:.9rem;margin:1.4rem 0 2rem}
+  .insights p{border-left:3px solid var(--tan);padding:.15rem 0 .15rem .9rem;
+        max-width:64ch}
+  section{margin-top:2.6rem}
+  section>h3{font-family:var(--mono);font-size:.75rem;text-transform:uppercase;
+        letter-spacing:.16em;color:var(--ivory-dim);margin-bottom:.9rem}
+  @media (prefers-reduced-motion: no-preference){
+    .bar>i{transition:width .6s ease}
+  }
+</style>
+</head>
+<body>
+<header><div class="mast">
+  <h1><a href="{{ url_for('index') }}">Blind Spots</a></h1>
+  <span class="sub">engine review of your own games</span>
+</div></header>
+<main>{% block body %}{% endblock %}</main>
+</body>
+</html>
